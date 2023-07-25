@@ -1,0 +1,4 @@
+- Add an OpenAI query function for the data on a time range
+- Write unit testing framework
+- Write integration tests with mocked azure devops endpoints
+- Add the terraform implementation
