@@ -4,6 +4,7 @@ import re
 from . import devopshelpers
 from . import regexs
 from . import storagehandler
+from . import config
 
 
 def getPullRequestInfo(pullRequestId):
@@ -230,6 +231,24 @@ def getCiMessageFromBuild(build):
     except:
         logging.debug("Error in getting ciMessage")
 
+# Create def regular expression to get work item id from branch identifier
+def getWorkItemId(branchIdentifier):
+    # Create regular expression to get work item id from branch identifier e.g. dspp-1234-branch-name
+    logging.info("Getting work item id from branch identifier")
+    logging.info(branchIdentifier)
+    projectIdentifier = config.project_identifier
+    regex = r"(?<="+projectIdentifier+"-)(\d+)"
+    # If search is true, return the work item id
+    if re.search(regex, branchIdentifier):
+        # Get the work item id from the branch identifier
+        workItemId = re.findall(regex, branchIdentifier)
+        logging.info("First regex matched: " + workItemId[0])
+        # Return the work item id
+        return workItemId[0]
+    else:
+        logging.info("Used both regexs and could not get work item id")
+        # Return an error 400 if the work item id cannot be found
+        raise ValueError("Could not find work item id in branch identifier")
 
 def getWorkItemInfoFromBuild(build, sourceBranch):
     """
@@ -251,7 +270,7 @@ def getWorkItemInfoFromBuild(build, sourceBranch):
             workItemIdentifier = build["triggerInfo"]["ci.message"]
         else:
             workItemIdentifier = sourceBranch
-        workItemId = regexs.getWorkItemId(workItemIdentifier)
+        workItemId = getWorkItemId(workItemIdentifier)
         workItemInfo = getWorkItemInfo(workItemId)
         return workItemId, workItemInfo
     except:

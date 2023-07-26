@@ -21,5 +21,8 @@ try:
 
     # Retrieve the table name from the environment variables and store it in the table_name variable
     storage_table_name = os.environ.get("STORAGE_TABLE_NAME")
+
+    # Get project identifier used to get the work item from branches
+    project_identifier = os.environ.get("PROJECT_IDENTIFIER")
 except:
     raise exit("Error in environment variables")
