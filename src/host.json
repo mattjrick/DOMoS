@@ -4,7 +4,7 @@
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[2.*, 3.0.0)"
   },
-  "functions": ["MetricCollectorApi"],
+  "functions": ["MetricCollectorApi", "MetricQueryApi"],
   "logger": {
     "defaultLevel": "Information",
     "categoryLevels": {
