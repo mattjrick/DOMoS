@@ -12,6 +12,10 @@ pyvenv.cfg
 # Ignore local development files
 .vscode/*
 
+# Ignore secrets
+*secrets.env
+docker/env/secrets/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

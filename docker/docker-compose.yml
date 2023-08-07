@@ -8,8 +8,9 @@ services:
     networks:
       default:
   devopsmetrics:
-    image: local/devops-metrics:latest
+    image: ${DOCKER_REGISTRY:-local}/domos:${DOCKER_TAG:-latest}
     ports:
       - "8080:80" 
     env_file:
-      - ./env/devopsmetrics.env
+      - ./env/locals.env
+      - ./env/secrets/secrets.env
