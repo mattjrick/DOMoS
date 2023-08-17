@@ -2,29 +2,8 @@ import json
 import logging
 import re
 from . import devopshelpers
-from . import regexs
 from . import storagehandler
 from . import config
-
-
-def getPullRequestInfo(pullRequestId):
-    """
-    Get the pull request info from azure devops based on pull request id
-
-    Args:
-    pullRequestId (int): The ID of the pull request
-
-    Returns:
-    dict: The JSON payload containing the pull request info
-    """
-    # Construct URL for querying azure devops pull request API
-    url = devopshelpers.constructURL("pullRequest", pullRequestId)
-
-    # Send request to azure devops and return JSON payload
-    response = devopshelpers.sendRequest(url)
-
-    # Return the response
-    return response
 
 
 def getBuildInfo(repositoryId):
@@ -51,7 +30,16 @@ def getBuildInfo(repositoryId):
 
         # Iterate through the response and append the build info to the list
         for build in response["value"]:
-            buildInfo.append(getBuild(build))
+            # If the build reason is schedule then skip it
+            if build["reason"] == "schedule":
+                logging.info("Skipping a scheduled build")
+                continue
+            if build["status"] != "completed":
+                logging.info("Skipping build where status is not completed")
+                continue
+            else:
+                logging.info("Getting build info for build: " + build["buildNumber"])
+                buildInfo.append(getBuild(build))
     except:
         raise ValueError("Error in request to get build info from azure devops")
     
@@ -60,66 +48,6 @@ def getBuildInfo(repositoryId):
         return buildInfo
     except Exception as e:
         raise ValueError("Error in storing build info in azure table:" + str(e))
-
-
-def getSourceBranchFromPullRequest(build):
-    """
-    Get the source branch from the pull request build
-
-    Args:
-    build (dict): The build dictionary
-
-    Returns:
-    str: The source branch of the pull request
-    """
-    parameters = build["parameters"]
-    parametersFixed = re.sub(r"\\", "", parameters)
-    parametersJson = json.loads(parametersFixed)
-    return parametersJson["system.pullRequest.sourceBranch"]
-
-
-def getCiMessageFromBuild(build):
-    """
-    Get the CI message from the build
-
-    Args:
-    build (dict): The build dictionary
-
-    Returns:
-    str: The CI message of the build
-    """
-    try:
-        if build["reason"] == "pullRequest":
-            return build["sourceVersion"]
-        else:
-            return build["triggerInfo"]["ci.message"]
-    except:
-        logging.debug("Error in getting ciMessage")
-
-
-def getWorkItemInfoFromBuild(build, sourceBranch):
-    """
-    Get the work item info from the build
-
-    Args:
-    build (dict): The build dictionary
-    sourceBranch (str): The source branch of the build
-
-    Returns:
-    tuple: A tuple containing the work item ID and the work item info dictionary
-    """
-    try:
-        if build["reason"] == "individualCI":
-            workItemIdentifier = build["triggerInfo"]["ci.message"]
-        else:
-            workItemIdentifier = sourceBranch
-        workItemId = regexs.getWorkItemId(workItemIdentifier)
-        workItemInfo = getWorkItemInfo(workItemId)
-        return workItemId, workItemInfo
-    except:
-        workItemId = ""
-        workItemInfo = {}
-        raise ValueError("Could not find work item id in branch identifier")
 
 
 def getWorkItemInfo(workItemId):
@@ -167,12 +95,15 @@ def getBuild(build):
     Returns:
     dict: A dictionary containing the build info
     """
+
+    # Get the source branch from the build dictionary
     if build["reason"] == "pullRequest":
         sourceBranch = getSourceBranchFromPullRequest(build)
     else:
         sourceBranch = build["sourceBranch"]
 
-    workItemId, workItemInfo = getWorkItemInfoFromBuild(build, sourceBranch)
+    # Using the source branch, get the work item id and work item info
+    workItemId, workItemInfo = getWorkItemInfoFromBuild(sourceBranch)
 
     ciMessage = getCiMessageFromBuild(build)
 
@@ -205,10 +136,14 @@ def getSourceBranchFromPullRequest(build):
     Returns:
         str: A string containing the source branch associated with the pull request.
     """
-    parameters = build["parameters"]
-    parametersFixed = re.sub(r"\\", "", parameters)
-    parametersJson = json.loads(parametersFixed)
-    return parametersJson["system.pullRequest.sourceBranch"]
+    try:
+        parameters = build["parameters"]
+        parametersFixed = re.sub(r"\\", "", parameters)
+        parametersJson = json.loads(parametersFixed)
+        return parametersJson["system.pullRequest.sourceBranch"]
+    except:
+        logging.info("Error in getting source branch from pull request")
+        return ""
 
 
 def getCiMessageFromBuild(build):
@@ -226,83 +161,60 @@ def getCiMessageFromBuild(build):
     try:
         if build["reason"] == "pullRequest":
             return build["sourceVersion"]
-        else:
+        if build["reason"] == "individualCI":
             return build["triggerInfo"]["ci.message"]
+        else:
+            return ""
     except:
-        logging.debug("Error in getting ciMessage")
+        logging.info("Error in getting ciMessage")
 
-# Create def regular expression to get work item id from branch identifier
+
 def getWorkItemId(branchIdentifier):
-    # Create regular expression to get work item id from branch identifier e.g. dspp-1234-branch-name
+    """
+    Given a branch identifier, returns the work item ID associated with that branch.
+    The work item ID is extracted from the branch identifier using a regular expression.
+
+    Args:
+        branchIdentifier (str): A string containing the branch identifier.
+
+    Returns:
+        str: A string containing the work item ID associated with the branch.
+    """
     logging.info("Getting work item id from branch identifier")
     logging.info(branchIdentifier)
     projectIdentifier = config.project_identifier
-    regex = r"(?<="+projectIdentifier+"-)(\d+)"
-    # If search is true, return the work item id
+    regex = r"(?<="+projectIdentifier+"-)([1-9]\d+)"
+    backup_regex = r"[1-9]\d{0,4}"
     if re.search(regex, branchIdentifier):
-        # Get the work item id from the branch identifier
         workItemId = re.findall(regex, branchIdentifier)
         logging.info("First regex matched: " + workItemId[0])
-        # Return the work item id
+        return workItemId[0]
+    elif re.search(backup_regex, branchIdentifier):
+        workItemId = re.findall(backup_regex, branchIdentifier)
+        logging.info("Second regex matched: " + workItemId[0])
         return workItemId[0]
     else:
         logging.info("Used both regexs and could not get work item id")
-        # Return an error 400 if the work item id cannot be found
-        raise ValueError("Could not find work item id in branch identifier")
+        return ""
 
-def getWorkItemInfoFromBuild(build, sourceBranch):
+def getWorkItemInfoFromBuild(sourceBranch):
     """
-    Given a build and a source branch, returns the work item ID and information associated with that work item.
-    If the build reason is "individualCI", the work item identifier is taken from the build's triggerInfo.
-    Otherwise, the work item identifier is taken from the source branch.
+    Given a source branch, returns the work item ID and information associated with that work item.
     Args:
         build (dict): A dictionary containing information about the build.
         sourceBranch (str): A string containing the source branch.
 
     Returns:
         tuple: A tuple containing the work item ID and information associated with that work item.
-
-    Raises:
-        ValueError: If the work item ID cannot be found in the branch identifier.
     """
-    try:
-        if build["reason"] == "individualCI":
-            workItemIdentifier = build["triggerInfo"]["ci.message"]
-        else:
-            workItemIdentifier = sourceBranch
-        workItemId = getWorkItemId(workItemIdentifier)
-        workItemInfo = getWorkItemInfo(workItemId)
-        return workItemId, workItemInfo
-    except:
-        workItemId = ""
-        workItemInfo = {}
-        raise ValueError("Could not find work item id in branch identifier")
 
-
-def getWorkItemInfo(workItemId):
-    # Construct URL for querying azure devops work item API
-    url = devopshelpers.constructURL("workItem", workItemId)
-
-    # Send request to azure devops and return JSON payload
-    response = devopshelpers.sendRequest(url)
-
-    if "System.Parent" in response["fields"]:
-        parentWorkItemId = response["fields"]["System.Parent"]
-        parentWorkItemTitle = response["fields"]["System.Title"]
+    workItemId = getWorkItemId(sourceBranch)
+    if workItemId == "":
+        logging.info("No work item id found")
+        return "", {}
     else:
-        parentWorkItemId = None
-        parentWorkItemTitle = None
-    try:
-        workItemInfo = {
-            "title": response["fields"]["System.Title"],
-            "workItemType": response["fields"]["System.WorkItemType"],
-            "parentWorkItemId": parentWorkItemId,
-            "parentWorkItemTitle": parentWorkItemTitle,
-        }
-        logging.info(workItemInfo)
-    except:
-        raise ValueError("Error in request to get work item info from azure devops")
-    return workItemInfo
+        workItemInfo = getWorkItemInfo(workItemId)
+    return workItemId, workItemInfo
 
 
 # Get details from azure devops based on JSON payload
