@@ -38,5 +38,41 @@ To start developing the project the following dependencies will be required:
 
 ## Running Locally with Docker
 
-1. Run './buildscripts/01_build.sh'
-2. Run 'docker compose -f docker/docker-compose.yml up'
+### Build
+'./buildscripts/01_build.sh'
+
+| Environment Variable | Description |
+| ------ | ----------- |
+| `DOCKER_REGISTRY` | If set, overrides the docker registry. Defaults to 'local'. |
+| `DOCKER_TAG` | If set, overrides the docker tag. Defaults to 'latest'. |
+
+### Test
+'./buildscripts/02_test.sh'
+
+**TBC**
+
+### Run
+In order to keep your project secrets safe from distribution on GitHub, our Docker Compose requires a 'secrets.env' file to be present in the /docker/env/secrets/ directory. These secrets can be populated programmatically by using the parameters detailed in this section.
+
+'./buildscripts/03_run.sh'
+
+**If you are running for the first time use the following options to populate ** 
+| Option | Description |
+| ------ | ----------- |
+| `--token <token>` | Personal access token for Azure DevOps (do not base64 encode) |
+| `--organization <ORGANIZATION>` | Azure DevOps organization name |
+| `--project <project>` | Azure DevOps project name |
+| `--project-identifier <project-identifier>` | Azure DevOps project identifier used in regex to help get work item id from branch |
+| `--azure-openai-key <azure-openai-key>` | Azure OpenAI API key |
+| `--azure-openai-endpoint <azure-openai-endpoint>` | Azure OpenAI API endpoint |
+| `--azure-openai-deployment-name <azure-openai-deployment-name>` | Azure OpenAI deployment name |
+| `--help` | Display this help message |
+
+### Build
+
+'./buildscripts/04_distribute.sh'
+
+| Environment Variable | Description |
+| ------ | ----------- |
+| `DOCKER_REGISTRY` | If set, overrides the docker registry. Defaults to 'local'. |
+| `DOCKER_TAG` | Defaults to latest if a build is ran on the main branch. If not main the DOCKER_TAG will be the name of the branch. |

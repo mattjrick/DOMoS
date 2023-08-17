@@ -6,7 +6,10 @@ node_modules/
 
 # Ignore Python Core build artifacts
 .venv/
+*__pycache__/*
+__pycache__/*
 __pycache__/
+pyvenv.cfg
 
 # Ignore Visual Studio Code settings
 .vscode/
