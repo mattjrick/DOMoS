@@ -20,11 +20,14 @@ def store_dicts_in_table(data_list: list):
     """
     table_client = connect_to_table_service()
     operations = []
-    for data in data_list:
+    for i, data in enumerate(data_list):
         operation = ('upsert', data)
         operations.append(operation)
-    try:
-        table_client.submit_transaction(operations)
-    except Exception as e:
-        logging.info(operations)
-        logging.info(str(e))
+        if (i+1) % 99 == 0 or (i+1) == len(data_list):
+            try:
+                table_client.submit_transaction(operations)
+                operations = []
+            except Exception as e:
+                logging.info(operations)                
+                logging.info(str(e))
+
