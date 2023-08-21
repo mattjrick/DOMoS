@@ -19,6 +19,12 @@ try:
         # Set the storage_connection_string variable to None if account name and key are used
         storage_connection_string = None
 
+    # Get the ADO organization
+    organization = os.environ.get("ORGANIZATION")
+
+    # Get the ADO project
+    project = os.environ.get("PROJECT")
+
     # Retrieve the table name from the environment variables and store it in the table_name variable
     storage_table_name = os.environ.get("STORAGE_TABLE_NAME")
 

@@ -21,14 +21,21 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         return func.HttpResponse(str(e), status_code=400)
 
-    # Try to query the table using the requested timerange
+    # Identify the data sources needed to query
     try:
-        data = storagehandler.query_table_using_time(parsedValues["fromDateTime"])
+        sources = openaihandler.get_data_sources(parsedValues["message"])
     except Exception as e:
         return func.HttpResponse(str(e), status_code=400)
     
+    # Send queries for the data sources
     try:
-        response = openaihandler.get_openai_response(data, parsedValues["message"])
+        dataset = openaihandler.send_data_source_query(sources, parsedValues["message"])
+    except Exception as e:
+        return func.HttpResponse(str(e), status_code=400)
+    
+    # Query the data sources
+    try:
+        response = openaihandler.query_dataset_with_message(dataset, message=parsedValues["message"])
     except Exception as e:
         return func.HttpResponse(str(e), status_code=400)
 
