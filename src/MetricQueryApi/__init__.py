@@ -32,12 +32,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         dataset = openaihandler.send_data_source_query(sources, parsedValues["message"])
     except Exception as e:
         return func.HttpResponse(str(e), status_code=400)
-    
+
+    #TODO: Normalise / rationalisation of the data sources
+
     # Query the data sources
-    try:
-        response = openaihandler.query_dataset_with_message(dataset, message=parsedValues["message"])
-    except Exception as e:
-        return func.HttpResponse(str(e), status_code=400)
+    #try:
+    #    response = openaihandler.query_dataset_with_message(dataset, message=parsedValues["message"])
+    #except Exception as e:
+    #    return func.HttpResponse(str(e), status_code=400)
 
 
-    return func.HttpResponse(response, status_code=200)
+    return func.HttpResponse(str(dataset), status_code=200)

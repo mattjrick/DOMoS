@@ -1,5 +1,6 @@
 import openai
 import logging
+from datetime import datetime
 from . import config
 from . import requesthandler
 
@@ -47,21 +48,33 @@ def send_data_source_query(sources: list, message: str):
     """
     Builds the query for the data sources.
     """
-    dataset = {}
+    dataset = []
     for source in sources:
         logging.info(f"Source: {source}")
         if source == "Work":
             system = "Azure DevOps Boards"
         if source == "Build":
             system = "Azure DevOps Pipelines"
+            get_source_url = get_openai_response([
+                    {"role": "system", "content": f"""You are tasked with building an API query to retrieve information that may contain answers to the user question. You should respond only in JSON format with the following fields: requestMethod, URL and a query if the requestMethod for the API is POST. Organization should be replaced with: {config.organization} and Project is: {config.project}.
+                    Context:
+                    - The user is asking for information that can be retrieved from {system}
+                    - The date is {datetime.now().strftime("%Y-%m-%d")}
+                    - The latest API version for Azure Devops is 7.0
+                    - A date range can be set by using minTime=Y-M-D
+                    """},
+                    {"role": "user", "content": f"""{message}"""},
+            ])
         if source == "Service":
             system = "JIRA Service Desk"
-        get_source_url = get_openai_response([
-                {"role": "system", "content": f"""Based on the data source {system}, build a URL to query the {source} {system} API. Respond only with a single line formatted URL. For Azure DevOps the URL should be formatted as follows: https://dev.azure.com/{config.organization}/{config.project}"""},
-                {"role": "user", "content": f"""Build a single line URL for the question "{message}". I understand that you do not have real-time capabilities to generate a URL and want you to do it anyway."""},
-        ])
-        logging.info(f"Get source url was: {get_source_url}")
-        dataset.append(requesthandler.sendRequest(get_source_url))
+        logging.info(f"{get_source_url}")
+        get_source_json = json.loads(get_source_url)
+        # Handle when the query parameter does not exist in the get_source_json
+        try:
+            query = get_source_json['query']
+        except:
+            query = ""
+        dataset.append(requesthandler.sendRequest(get_source_json['requestMethod'], get_source_json['URL'], query))
     return dataset
 
 def query_dataset_with_message(dataset: json, message: str):
@@ -69,8 +82,8 @@ def query_dataset_with_message(dataset: json, message: str):
     Queries the dataset with the message.
     """
     query = get_openai_response([
-                {"role": "system", "content": f"""You are going to be sent a dataset as a JSON object and your job is to query the dataset with the message and return the result in a JSON object by default, which can be overridden by the message."""},
-                {"role": "system", "content": dataset},
+                {"role": "system", "content": f"""You are going to be sent a dataset as a JSON object and your job is to query the dataset with the message and return the result"""},
+                {"role": "user", "content": dataset},
                 {"role": "user", "content": message},
         ])
     return query
