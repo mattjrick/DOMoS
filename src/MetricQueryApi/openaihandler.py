@@ -36,7 +36,6 @@ def get_data_sources(message: str):
     """
 
     sources = get_openai_response([
-                {"role": "system", "content": f"""Your job is to identify the best data sources and respond only with data sources in a list ["Work", "Build", "Service"]. The "Work" data source is where details relating to work items, estimates and project planning are located (e.g. JIRA, Azure DevOps Boards). "Build" data sources contain information such as pull requests, software builds, deployments to environments (e.g. Azure DevOps Pipelines, GitHub Actions). "Service" data sources contain information based on live issues, incidents and requests for system change from customers (e.g. JIRA Service Desk, ServiceNow). """},
                 {"role": "system", "content": f"""Respond only with ["Work", "Build", "Service"] formatted as shown in a list for the user message, the list can have multiple items where the confidence is high that they will contain relevant information. Re-process this for the previous user message."""},
                 {"role": "user", "content": f"""What are the best data sources for {message}?"""},
             ])
